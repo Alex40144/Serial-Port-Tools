@@ -1,5 +1,4 @@
 import Head from "next/head";
-import { useRouter } from 'next/router'
 import React, { useEffect, useState } from 'react'
 
 import dynamic from 'next/dynamic';
@@ -9,7 +8,7 @@ import dynamic from 'next/dynamic';
 const Home = () => {
 	let port: any, reader: any, log: any, writer: any
 	let lineReader: any = undefined
-	const loadSerialPorts = async() => {
+	const loadSerialPorts = async () => {
 		if ('serial' in navigator) {
 			try {
 				port = await navigator.serial.requestPort();
@@ -31,36 +30,37 @@ const Home = () => {
 
 	class LineBreakTransformer {
 		constructor() {
-		  this.container = '';
+			this.container = ''
 		}
-	  
+
 		transform(chunk, controller) {
-		  this.container += chunk;
-		  const lines = this.container.split('\r\n');
-		  this.container = lines.pop();
-		  lines.forEach(line => controller.enqueue(line));
+			this.container += chunk
+			const lines = this.container.split('\r\n')
+			this.container = lines.pop()
+			lines.forEach(line => controller.enqueue(line))
 		}
-	  
+
 		flush(controller) {
-		  controller.enqueue(this.container);
+			controller.enqueue(this.container)
 		}
 	}
-	  
-	
-	const monitorPort = async()=>{
+
+
+	const monitorPort = async () => {
 		while (port.readable) {
 			//const textDecoder = new TextDecoderStream();
 			try {
 				while (true) {
-					const { value, done } = await lineReader.read();
+					const { value, done } = await lineReader.read()
 					if (done) {
 						// Allow the serial port to be closed later.
-						reader.releaseLock();
-						
-						break;
+						reader.releaseLock()
+
+						break
 					}
 					if (value) {
-						console.log(value);
+						console.log(value)
+						addMessage(value)
 					}
 				}
 			} catch (error) {
@@ -69,7 +69,32 @@ const Home = () => {
 		}
 	}
 
-	
+	const addMessage = (message: string) => {
+		var div = document.createElement('div');
+		div.innerHTML = '<h3 name="event">' + message + '</h3>';
+
+
+		div.className = 'message'
+
+		var Terminal = document.getElementById("Terminal")
+		if (Terminal == null) {
+			return
+		}
+		div.className = 'message title3'
+		Terminal.appendChild(div);
+	}
+
+	const clearAllMessages = () => {
+		var Terminal = document.getElementById("Terminal")
+		if (Terminal == null) {
+			return
+		}
+		while (Terminal.firstChild) {
+			Terminal.removeChild(Terminal.firstChild);
+		}
+	}
+
+
 	return (
 		<>
 			<Head>
@@ -78,12 +103,14 @@ const Home = () => {
 				<link rel="icon" href="/favicon.ico" />
 				<meta name="theme-color" content="#90cdf4" />
 				<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.3.1/leaflet.css" />
-        <link href="https://unpkg.com/leaflet-geosearch@latest/assets/css/leaflet.css" rel="stylesheet" />
+				<link href="https://unpkg.com/leaflet-geosearch@latest/assets/css/leaflet.css" rel="stylesheet" />
 			</Head>
 			<div>
 				<button onClick={loadSerialPorts}>Connect to Receiver</button>
-			</div>
-			<div>
+				<br />
+				<div className="Terminal" id="Terminal">
+				</div>
+				<button onClick={clearAllMessages}>Clear</button>
 			</div>
 		</>
 	);
