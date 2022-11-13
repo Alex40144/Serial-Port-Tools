@@ -36,6 +36,7 @@ html {
   --select-border: #777;
   --select-focus: blue;
   --select-arrow: var(--select-border);
+  --form-control-color: rgb(37, 99, 235);
 }
 
 select {
@@ -52,11 +53,6 @@ select {
   outline: none;
 }
 
-:root {
-  --select-border: #777;
-  --select-focus: blue;
-  --select-arrow: var(--select-border);
-}
 .select {
   width: 100%;
   min-width: 15ch;
@@ -86,4 +82,49 @@ select {
 select,
 .select:after {
   grid-area: select;
+}
+
+.form-control {
+  font-family: system-ui, sans-serif;
+  font-size: inherit;
+  font-weight: bold;
+  line-height: 1.1;
+  display: grid;
+  grid-template-columns: 1em auto;
+  gap: 0.5em;
+  margin: 0.5rem;
+}
+
+input[type="radio"] {
+  -webkit-appearance: none;
+  appearance: none;
+  background-color: #fff;
+  margin: 0;
+  font: inherit;
+  color: currentColor;
+  width: 1.15em;
+  height: 1.15em;
+  border: 0.15em solid currentColor;
+  border-radius: 50%;
+  transform: translateY(-0.075em);
+  display: grid;
+  place-content: center;
+}
+
+.form-control + .form-control {
+  margin-top: 1em;
+}
+
+input[type="radio"]::before {
+  content: "";
+  width: 0.65em;
+  height: 0.65em;
+  border-radius: 50%;
+  transform: scale(0);
+  transition: 120ms transform ease-in-out;
+  box-shadow: inset 1em 1em var(--form-control-color);
+}
+
+input[type="radio"]:checked::before {
+  transform: scale(1);
 }

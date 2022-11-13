@@ -12,17 +12,17 @@ const Home = () => {
 
 	var keepReading: boolean
 
-	let port: any, reader: any, log: any, writer: any
+	let port: any, ascii_reader: any, log: any, writer: any
 	const loadSerialPorts = async () => {
 		if ('serial' in navigator) {
 			try {
 				//need to close all ports
 				port = await navigator.serial.requestPort();
 				await port.open({ baudRate: baudRate, bufferSize: 1024, dataBits: dataBits, parity: parity, stopBits: stopBits });
-				reader = port.readable
+				ascii_reader = port.readable
 					.pipeThrough(new TextDecoderStream())
 					.pipeThrough(new TransformStream(new LineBreakTransformer()))
-					.getReader();
+					.getascii_Reader();
 				keepReading = true
 				monitorPort()
 			}
@@ -47,7 +47,7 @@ const Home = () => {
 				const textDecoder = new TextDecoderStream();
 				const readableStreamClosed = port.readable.pipeTo(textDecoder.writable);
 
-				reader.cancel();
+				ascii_reader.cancel();
 				await readableStreamClosed.catch(() => { /* Ignore the error */ });
 
 				writer.close();
@@ -89,9 +89,9 @@ const Home = () => {
 			//const textDecoder = new TextDecoderStream();
 			try {
 				while (true) {
-					const { value, done } = await reader.read()
+					const { value, done } = await ascii_reader.read()
 					if (done) {
-						reader.releaseLock()
+						ascii_reader.releaseLock()
 
 						break
 					}
@@ -139,7 +139,7 @@ const Home = () => {
 
 				</div>
 				<div className="flex flex-col w-2/12 bg-white border-l-4 border-blue-600">
-					<div>
+					<div className='m-2'>
 						<h2 className='m-2 text-lg font-bold'> Port Settings</h2>
 						<div>
 							<h3 className='m-2'>Baud Rate</h3>
@@ -176,8 +176,16 @@ const Home = () => {
 						<button onClick={loadSerialPorts} className="flex m-2 mx-auto bg-green-600 p-2 rounded">Connect Port</button>
 						<button onClick={removeSerialPorts} className="flex m-2 mx-auto bg-red-600 p-2 rounded">Disconnect Port</button>
 					</div>
-					<div>
+					<div className='m-2'>
 						<h2 className='m-2 text-lg font-bold'> Receive Settings</h2>
+						<label className='form-control'>
+							<input type="radio" name="RxMode" />
+							ASCII
+						</label>
+						<label className='form-control'>
+							<input type="radio" name="RxMode" />
+							HEX
+						</label>
 					</div>
 					<div>
 						<h2 className='m-2 text-lg font-bold'> Send Settings</h2>
