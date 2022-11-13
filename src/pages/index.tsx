@@ -5,7 +5,11 @@ import Layout from "../../components/Layout";
 
 const Home = () => {
 
-	const [baudRate, setBaudRate] = useState(9600);
+	const [baudRate, setBaudRate] = useState(115200);
+	const [dataBits, setDataBits] = useState(8);
+	const [stopBits, setStopBits] = useState(1);
+	const [parity, setParity] = useState("none");
+
 	var keepReading: boolean
 
 	let port: any, reader: any, log: any, writer: any
@@ -14,7 +18,7 @@ const Home = () => {
 			try {
 				//need to close all ports
 				port = await navigator.serial.requestPort();
-				await port.open({ baudRate: baudRate, bufferSize: 1024, dataBits: 8, parity: "none", stopBits: 1 });
+				await port.open({ baudRate: baudRate, bufferSize: 1024, dataBits: dataBits, parity: parity, stopBits: stopBits });
 				reader = port.readable
 					.pipeThrough(new TextDecoderStream())
 					.pipeThrough(new TransformStream(new LineBreakTransformer()))
@@ -24,6 +28,7 @@ const Home = () => {
 			}
 			catch (err) {
 				console.error('There was an error opening the serial port:', err);
+				console.log("probably open in another application")
 			}
 		}
 		else {
@@ -32,23 +37,28 @@ const Home = () => {
 	}
 
 	const removeSerialPorts = async () => {
-		if (keepReading == true) { //don't close if not open
-			keepReading = false
-			console.log(keepReading)
-			const textEncoder = new TextEncoderStream();
-			const writer = textEncoder.writable.getWriter();
-			const writableStreamClosed = textEncoder.readable.pipeTo(port.writable);
-			const textDecoder = new TextDecoderStream();
-			const readableStreamClosed = port.readable.pipeTo(textDecoder.writable);
+		try {
+			if (port.readable) { //don't close if not open
+				keepReading = false
+				console.log(keepReading)
+				const textEncoder = new TextEncoderStream();
+				const writer = textEncoder.writable.getWriter();
+				const writableStreamClosed = textEncoder.readable.pipeTo(port.writable);
+				const textDecoder = new TextDecoderStream();
+				const readableStreamClosed = port.readable.pipeTo(textDecoder.writable);
 
-			reader.cancel();
-			await readableStreamClosed.catch(() => { /* Ignore the error */ });
+				reader.cancel();
+				await readableStreamClosed.catch(() => { /* Ignore the error */ });
 
-			writer.close();
-			await writableStreamClosed;
+				writer.close();
+				await writableStreamClosed;
 
-			await port.close();
+				await port.close();
+			}
+		} catch {
+			//port wasn't open
 		}
+
 	}
 
 
@@ -130,32 +140,49 @@ const Home = () => {
 				</div>
 				<div className="flex flex-col w-2/12 bg-white border-l-4 border-blue-600">
 					<div>
-						<h2> Port Settings</h2>
+						<h2 className='m-2 text-lg font-bold'> Port Settings</h2>
 						<div>
-							<h3>Baud Rate</h3>
-							<select
-								value={baudRate}
-								onChange={(e) => {
-									setBaudRate(parseInt(e.target.value));
-								}}
-							>
-								<option value={9600}> 9600 </option>
-								<option value={115200}> 115200 </option>
-								<option value={0}> Custom </option>
-
-							</select>
-
+							<h3 className='m-2'>Baud Rate</h3>
+							<div className="select">
+								<select value={baudRate} onChange={(e) => { setBaudRate(parseInt(e.target.value)); }}>
+									<option value={9600}> 9600 </option>
+									<option value={115200}> 115200 </option>
+									<option value={0}> Custom </option>
+								</select>
+							</div>
+							<h3 className='m-2'>Data Length</h3>
+							<div className="select">
+								<select value={dataBits} onChange={(e) => { setDataBits(parseInt(e.target.value)); }}>
+									<option value={7}> 7 bits </option>
+									<option value={8}> 8 bits </option>
+								</select>
+							</div>
+							<h3 className='m-2'>Parity</h3>
+							<div className="select">
+								<select value={parity} onChange={(e) => { setParity(e.target.value); }}>
+									<option value={"none"}> None </option>
+									<option value={"even"}> Even </option>
+									<option value={"odd"}> Odd </option>
+								</select>
+							</div>
+							<h3 className='m-2'>Stop Bits</h3>
+							<div className="select">
+								<select value={stopBits} onChange={(e) => { setStopBits(parseInt(e.target.value)); }}>
+									<option value={1}> 1 </option>
+									<option value={2}> 2 </option>
+								</select>
+							</div>
 						</div>
-						<button onClick={loadSerialPorts} className="flex">Connect Port</button>
-						<button onClick={removeSerialPorts} className="flex">Disconnect Port</button>
+						<button onClick={loadSerialPorts} className="flex m-2 mx-auto bg-green-600 p-2 rounded">Connect Port</button>
+						<button onClick={removeSerialPorts} className="flex m-2 mx-auto bg-red-600 p-2 rounded">Disconnect Port</button>
 					</div>
 					<div>
-						<h2> Receive Settings</h2>
+						<h2 className='m-2 text-lg font-bold'> Receive Settings</h2>
 					</div>
 					<div>
-						<h2> Send Settings</h2>
+						<h2 className='m-2 text-lg font-bold'> Send Settings</h2>
 					</div>
-					<button onClick={clearAllMessages} className="flex" >Clear</button>
+					<button onClick={clearAllMessages} className="flex m-2 mx-auto bg-blue-600 p-2 rounded" >Clear</button>
 				</div>
 			</div>
 		</Layout>
