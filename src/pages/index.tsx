@@ -9,6 +9,8 @@ const Home = () => {
 	const [dataBits, setDataBits] = useState(8);
 	const [stopBits, setStopBits] = useState(1);
 	const [parity, setParity] = useState("none");
+	const [input, setInput] = useState("");
+
 
 	var keepReading: boolean
 
@@ -24,6 +26,7 @@ const Home = () => {
 					.pipeThrough(new TransformStream(new LineBreakTransformer()))
 					.getascii_Reader();
 				keepReading = true
+				addMessage("--CONNECTED--")
 				monitorPort()
 			}
 			catch (err) {
@@ -104,6 +107,10 @@ const Home = () => {
 			}
 		}
 		console.log("closing port")
+	}
+
+	const sendInput = () => {
+
 	}
 
 	const addMessage = (message: string) => {
@@ -191,6 +198,7 @@ const Home = () => {
 						<h2 className='m-2 text-lg font-bold'> Send Settings</h2>
 					</div>
 					<button onClick={clearAllMessages} className="flex m-2 mx-auto bg-blue-600 p-2 rounded" >Clear</button>
+					<input className='' value={input} onChange={(e) => { setInput(e.target.value); }} onKeyDown={(e) => { if (e.key == 'Enter') { sendInput() } }} />
 				</div>
 			</div>
 		</Layout>
