@@ -9,29 +9,28 @@ const Home = () => {
 	const [dataBits, setDataBits] = useState(8);
 	const [stopBits, setStopBits] = useState(1);
 	const [parity, setParity] = useState("none");
-	const [input, setInput] = useState("");
 
 
 	var keepReading: boolean
 
-	let port: any, ascii_reader: any, log: any, writer: any
+	let port: any, reader: any, log: any, writer: any
 	const loadSerialPorts = async () => {
 		if ('serial' in navigator) {
 			try {
 				//need to close all ports
 				port = await navigator.serial.requestPort();
 				await port.open({ baudRate: baudRate, bufferSize: 1024, dataBits: dataBits, parity: parity, stopBits: stopBits });
-				ascii_reader = port.readable
+				reader = port.readable
 					.pipeThrough(new TextDecoderStream())
 					.pipeThrough(new TransformStream(new LineBreakTransformer()))
-					.getascii_Reader();
+					.getReader();
 				keepReading = true
 				addMessage("--CONNECTED--")
 				monitorPort()
 			}
 			catch (err) {
 				console.error('There was an error opening the serial port:', err);
-				console.log("probably open in another application")
+				addMessage("--ERROR: Could not Connect--")
 			}
 		}
 		else {
@@ -44,19 +43,21 @@ const Home = () => {
 			if (port.readable) { //don't close if not open
 				keepReading = false
 				console.log(keepReading)
+
 				const textEncoder = new TextEncoderStream();
-				const writer = textEncoder.writable.getWriter();
-				const writableStreamClosed = textEncoder.readable.pipeTo(port.writable);
 				const textDecoder = new TextDecoderStream();
+				const writableStreamClosed = textEncoder.readable.pipeTo(port.writable);
 				const readableStreamClosed = port.readable.pipeTo(textDecoder.writable);
 
-				ascii_reader.cancel();
+				reader.cancel();
 				await readableStreamClosed.catch(() => { /* Ignore the error */ });
 
 				writer.close();
+
 				await writableStreamClosed;
 
 				await port.close();
+				addMessage("--DISCONNECTED--")
 			}
 		} catch {
 			//port wasn't open
@@ -92,9 +93,9 @@ const Home = () => {
 			//const textDecoder = new TextDecoderStream();
 			try {
 				while (true) {
-					const { value, done } = await ascii_reader.read()
+					const { value, done } = await reader.read()
 					if (done) {
-						ascii_reader.releaseLock()
+						reader.releaseLock()
 
 						break
 					}
@@ -109,8 +110,16 @@ const Home = () => {
 		console.log("closing port")
 	}
 
-	const sendInput = () => {
+	const sendInput = async() => {
+		console.log(port)
+		let data = document.getElementById("dataToSend")?.value;
+		console.log(data)
+		const textEncoder = new TextEncoderStream();
 
+		const writer = textEncoder.writable.getWriter();
+
+		await writer.write(data);
+		writer.releaseLock()
 	}
 
 	const addMessage = (message: string) => {
@@ -186,7 +195,7 @@ const Home = () => {
 					<div className='m-2'>
 						<h2 className='m-2 text-lg font-bold'> Receive Settings</h2>
 						<label className='form-control'>
-							<input type="radio" name="RxMode" />
+							<input type="radio" name="RxMode" checked/>
 							ASCII
 						</label>
 						<label className='form-control'>
@@ -198,7 +207,9 @@ const Home = () => {
 						<h2 className='m-2 text-lg font-bold'> Send Settings</h2>
 					</div>
 					<button onClick={clearAllMessages} className="flex m-2 mx-auto bg-blue-600 p-2 rounded" >Clear</button>
-					<input className='' value={input} onChange={(e) => { setInput(e.target.value); }} onKeyDown={(e) => { if (e.key == 'Enter') { sendInput() } }} />
+					<input className='' id='dataToSend'/>
+					<button onClick={sendInput} className="flex m-2 mx-auto bg-red-600 p-2 rounded">Send</button>
+
 				</div>
 			</div>
 		</Layout>
