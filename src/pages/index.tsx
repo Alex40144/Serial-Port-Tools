@@ -13,7 +13,7 @@ const Home = () => {
 
 	var keepReading: boolean
 
-	let port: any, reader: any, log: any, writer: any
+	let port: any, reader: any, log: any, writer: any, textDecoder: any, readableStreamClosed: any
 	const loadSerialPorts = async () => {
 		if ('serial' in navigator) {
 			try {
@@ -24,6 +24,7 @@ const Home = () => {
 					.pipeThrough(new TextDecoderStream())
 					.pipeThrough(new TransformStream(new LineBreakTransformer()))
 					.getReader();
+
 				keepReading = true
 				addMessage("--CONNECTED--")
 				monitorPort()
@@ -45,15 +46,13 @@ const Home = () => {
 				console.log(keepReading)
 
 				const textEncoder = new TextEncoderStream();
-				const textDecoder = new TextDecoderStream();
+				const writer = textEncoder.writable.getWriter();
 				const writableStreamClosed = textEncoder.readable.pipeTo(port.writable);
-				const readableStreamClosed = port.readable.pipeTo(textDecoder.writable);
 
 				reader.cancel();
 				await readableStreamClosed.catch(() => { /* Ignore the error */ });
 
 				writer.close();
-
 				await writableStreamClosed;
 
 				await port.close();
@@ -89,8 +88,14 @@ const Home = () => {
 
 
 	const monitorPort = async () => {
+		if (reader.locked) {
+			console.log("stream locked")
+			reader.releaseLock()
+		}
+		textDecoder = new TextDecoderStream();
+		readableStreamClosed = port.readable.pipeTo(textDecoder.writable);
 		while (port.readable && keepReading) {
-			//const textDecoder = new TextDecoderStream();
+
 			try {
 				while (true) {
 					const { value, done } = await reader.read()
@@ -102,6 +107,7 @@ const Home = () => {
 					if (value) {
 						addMessage(value)
 					}
+
 				}
 			} catch (error) {
 				// TODO: Handle non-fatal read error.
@@ -110,14 +116,13 @@ const Home = () => {
 		console.log("closing port")
 	}
 
-	const sendInput = async() => {
+	const sendInput = async () => {
 		console.log(port)
 		let data = document.getElementById("dataToSend")?.value;
 		console.log(data)
 		const textEncoder = new TextEncoderStream();
-
+		const writableStreamClosed = textEncoder.readable.pipeTo(port.writable);
 		const writer = textEncoder.writable.getWriter();
-
 		await writer.write(data);
 		writer.releaseLock()
 	}
@@ -195,7 +200,7 @@ const Home = () => {
 					<div className='m-2'>
 						<h2 className='m-2 text-lg font-bold'> Receive Settings</h2>
 						<label className='form-control'>
-							<input type="radio" name="RxMode" checked/>
+							<input type="radio" name="RxMode" />
 							ASCII
 						</label>
 						<label className='form-control'>
@@ -207,8 +212,7 @@ const Home = () => {
 						<h2 className='m-2 text-lg font-bold'> Send Settings</h2>
 					</div>
 					<button onClick={clearAllMessages} className="flex m-2 mx-auto bg-blue-600 p-2 rounded" >Clear</button>
-					<input className='' id='dataToSend'/>
-					<button onClick={sendInput} className="flex m-2 mx-auto bg-red-600 p-2 rounded">Send</button>
+					<input className='' id='dataToSend' onKeyDown={(e) => { if (e.key === "Enter") { sendInput() } }} />
 
 				</div>
 			</div>
