@@ -13,18 +13,16 @@ const Home = () => {
 
 	var keepReading: boolean
 
-	let port: any, reader: any, log: any, writer: any, textDecoder: any, readableStreamClosed: any
+	let port: any, reader: any, readableStreamClosed: any, textEncoder: any, textDecoder: any, writableStreamClosed: any, writer: any
 	const loadSerialPorts = async () => {
 		if ('serial' in navigator) {
 			try {
 				//need to close all ports
 				port = await navigator.serial.requestPort();
 				await port.open({ baudRate: baudRate, bufferSize: 1024, dataBits: dataBits, parity: parity, stopBits: stopBits });
-				reader = port.readable
-					.pipeThrough(new TextDecoderStream())
-					.pipeThrough(new TransformStream(new LineBreakTransformer()))
-					.getReader();
-
+				textEncoder = new TextEncoderStream();
+				writableStreamClosed = textEncoder.readable.pipeTo(port.writable);
+				writer = textEncoder.writable.getWriter();
 				keepReading = true
 				addMessage("--CONNECTED--")
 				monitorPort()
@@ -45,23 +43,18 @@ const Home = () => {
 				keepReading = false
 				console.log(keepReading)
 
-				const textEncoder = new TextEncoderStream();
-				const writer = textEncoder.writable.getWriter();
-				const writableStreamClosed = textEncoder.readable.pipeTo(port.writable);
-
 				reader.cancel();
-				await readableStreamClosed.catch(() => { /* Ignore the error */ });
-
+				console.log("here")
+				await readableStreamClosed.catch(() => { });
 				writer.close();
 				await writableStreamClosed;
-
 				await port.close();
+				port = undefined
 				addMessage("--DISCONNECTED--")
 			}
 		} catch {
 			//port wasn't open
 		}
-
 	}
 
 
@@ -88,43 +81,41 @@ const Home = () => {
 
 
 	const monitorPort = async () => {
-		if (reader.locked) {
-			console.log("stream locked")
-			reader.releaseLock()
-		}
 		textDecoder = new TextDecoderStream();
 		readableStreamClosed = port.readable.pipeTo(textDecoder.writable);
-		while (port.readable && keepReading) {
+		reader = textDecoder.readable.getReader();
+		try {
+			while (true) {
+				const { value, done } = await reader.read()
+				if (done) {
+					reader.releaseLock()
 
-			try {
-				while (true) {
-					const { value, done } = await reader.read()
-					if (done) {
-						reader.releaseLock()
-
-						break
-					}
-					if (value) {
-						addMessage(value)
-					}
-
+					break
 				}
-			} catch (error) {
-				// TODO: Handle non-fatal read error.
+				if (value) {
+					addMessage(value)
+				}
+
 			}
+		} catch (error) {
+			await reader.cancel();
+			await readableStreamClosed.catch(() => { });
+			await removeSerialPorts();
+			console.log("listenToPort error");
 		}
-		console.log("closing port")
 	}
 
 	const sendInput = async () => {
 		console.log(port)
-		let data = document.getElementById("dataToSend")?.value;
-		console.log(data)
-		const textEncoder = new TextEncoderStream();
-		const writableStreamClosed = textEncoder.readable.pipeTo(port.writable);
-		const writer = textEncoder.writable.getWriter();
-		await writer.write(data);
-		writer.releaseLock()
+		let element = (document.getElementById("dataToSend") as HTMLInputElement)
+		if (element && port) {
+			let data = element.value;
+			element.value = ""
+			console.log(data)
+
+			await writer.write(data);
+			// writer.releaseLock()
+		}
 	}
 
 	const addMessage = (message: string) => {
@@ -198,7 +189,7 @@ const Home = () => {
 						<button onClick={removeSerialPorts} className="flex m-2 mx-auto bg-red-600 p-2 rounded">Disconnect Port</button>
 					</div>
 					<div className='m-2'>
-						<h2 className='m-2 text-lg font-bold'> Receive Settings</h2>
+						<h2 className='m-2 text-lg font-bold'> Tx/Rx Settings</h2>
 						<label className='form-control'>
 							<input type="radio" name="RxMode" />
 							ASCII
@@ -207,9 +198,6 @@ const Home = () => {
 							<input type="radio" name="RxMode" />
 							HEX
 						</label>
-					</div>
-					<div>
-						<h2 className='m-2 text-lg font-bold'> Send Settings</h2>
 					</div>
 					<button onClick={clearAllMessages} className="flex m-2 mx-auto bg-blue-600 p-2 rounded" >Clear</button>
 					<input className='' id='dataToSend' onKeyDown={(e) => { if (e.key === "Enter") { sendInput() } }} />
