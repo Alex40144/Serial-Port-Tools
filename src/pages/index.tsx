@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import Layout from "../../components/Layout";
+import { Readable, Transform } from 'stream';
+
 
 
 
@@ -10,19 +12,21 @@ const Home = () => {
 	const [stopBits, setStopBits] = useState(1);
 	const [parity, setParity] = useState("none");
 
+	var TxMode = "ASCII" //default
+	var RxMode = "ASCII" //default
 
 	var keepReading: boolean
 
-	let port: any, reader: any, readableStreamClosed: any, textEncoder: any, textDecoder: any, writableStreamClosed: any, writer: any
+	let port: any, reader: any, readableStreamClosed: any, textEncoder: any, textDecoder: any, writableStreamClosed: any, writer: any, hexEncoder: any, hexDecoder: any
 	const loadSerialPorts = async () => {
 		if ('serial' in navigator) {
 			try {
 				//need to close all ports
 				port = await navigator.serial.requestPort();
-				await port.open({ baudRate: baudRate, bufferSize: 1024, dataBits: dataBits, parity: parity, stopBits: stopBits });
-				textEncoder = new TextEncoderStream();
-				writableStreamClosed = textEncoder.readable.pipeTo(port.writable);
-				writer = textEncoder.writable.getWriter();
+				await port.open({ baudRate: baudRate, bufferSize: 1024, dataBits: dataBits, parity: parity, stopBits: stopBits })
+
+				writer = port.writable.getWriter()
+
 				keepReading = true
 				addMessage("--CONNECTED--")
 				monitorPort()
@@ -40,15 +44,14 @@ const Home = () => {
 	const removeSerialPorts = async () => {
 		try {
 			if (port.readable) { //don't close if not open
-				keepReading = false
-				console.log(keepReading)
 
-				reader.cancel();
+				keepReading = false
+
+				await reader.cancel();
 				console.log("here")
-				await readableStreamClosed.catch(() => { });
-				writer.close();
-				await writableStreamClosed;
+				writer.releaseLock()
 				await port.close();
+
 				port = undefined
 				addMessage("--DISCONNECTED--")
 			}
@@ -58,32 +61,9 @@ const Home = () => {
 	}
 
 
-	class LineBreakTransformer {
-		container: string;
-		constructor() {
-			this.container = ''
-		}
-
-		transform(chunk: any, controller: any) {
-			this.container += chunk
-			const lines = this.container.split('\r\n')
-			var temp = lines.pop()
-			if (temp != undefined) {
-				this.container = temp
-			}
-			lines.forEach(line => controller.enqueue(line))
-		}
-
-		flush(controller: any) {
-			controller.enqueue(this.container)
-		}
-	}
-
-
 	const monitorPort = async () => {
-		textDecoder = new TextDecoderStream();
-		readableStreamClosed = port.readable.pipeTo(textDecoder.writable);
-		reader = textDecoder.readable.getReader();
+		reader = port.readable.getReader();
+
 		try {
 			while (true) {
 				const { value, done } = await reader.read()
@@ -93,13 +73,24 @@ const Home = () => {
 					break
 				}
 				if (value) {
-					addMessage(value)
+					console.log(value.buffer)
+					if (RxMode == "HEX") {
+						const view = new DataView(value.buffer);
+						for (let i = 0; i < value.buffer.byteLength; i += 1) {
+							var hexValue = view.getUint8(i).toString(16);
+							addMessage(hexValue)
+						}
+					} else {
+						const decoder = new TextDecoder();
+						const asciiString = decoder.decode(value.buffer);
+						addMessage(asciiString)
+					}
 				}
 
 			}
 		} catch (error) {
+			console.log(error)
 			await reader.cancel();
-			await readableStreamClosed.catch(() => { });
 			await removeSerialPorts();
 			console.log("listenToPort error");
 		}
@@ -111,10 +102,22 @@ const Home = () => {
 		if (element && port) {
 			let data = element.value;
 			element.value = ""
-			console.log(data)
 
-			await writer.write(data);
-			// writer.releaseLock()
+
+			if (TxMode == "HEX") {
+				//check that input is hex
+				//convert ascii to hex values in uintarray
+				var uint8 = new Uint8Array(data.length / 2);
+				for (let i = 0; i < data.length; i += 2) {
+					const value = parseInt(data.substring(i, i + 2), 16);
+					uint8[i / 2] = value;
+					await writer.write(uint8);
+				}
+			} else {
+				// convert ascii to uintarray
+				var uint8 = new TextEncoder().encode(data)
+				await writer.write(uint8);
+			}
 		}
 	}
 
@@ -189,13 +192,22 @@ const Home = () => {
 						<button onClick={removeSerialPorts} className="flex m-2 mx-auto bg-red-600 p-2 rounded">Disconnect Port</button>
 					</div>
 					<div className='m-2'>
-						<h2 className='m-2 text-lg font-bold'> Tx/Rx Settings</h2>
+						<h2 className='m-2 text-lg font-bold'> Tx Settings</h2>
 						<label className='form-control'>
-							<input type="radio" name="RxMode" />
+							<input type="radio" name="TxMode" onChange={(e) => { TxMode = "ASCII" }} checked />
 							ASCII
 						</label>
 						<label className='form-control'>
-							<input type="radio" name="RxMode" />
+							<input type="radio" name="TxMode" onChange={(e) => { TxMode = "HEX" }} />
+							HEX
+						</label>
+						<h2 className='m-2 text-lg font-bold'> Rx Settings</h2>
+						<label className='form-control'>
+							<input type="radio" name="RxMode" onChange={(e) => { RxMode = "ASCII" }} checked />
+							ASCII
+						</label>
+						<label className='form-control'>
+							<input type="radio" name="RxMode" onChange={(e) => { RxMode = "HEX" }} />
 							HEX
 						</label>
 					</div>
