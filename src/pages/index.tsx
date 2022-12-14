@@ -100,17 +100,19 @@ const Home = () => {
 		let element = (document.getElementById("dataToSend") as HTMLInputElement)
 		if (element && port) {
 			let data = element.value;
-			element.value = ""
+			element.value = ''
 
 
 			if (TxMode == "HEX") {
 				if (!/^[0-9a-fA-F]*$/.test(data)) {
-					throw new Error("Invalid hex string");
+					addMessage("--Hex must only contain valid characters--")
+					return
 				}
 
 				const hexLength = data.length;
 				if (hexLength % 2 !== 0) {
-					throw new Error("Hex string must have an even number of characters");
+					addMessage("--Hex must contain an even number of characters--")
+					return
 				}
 
 
@@ -204,7 +206,7 @@ const Home = () => {
 					<div className='m-2'>
 						<h2 className='m-2 text-lg font-bold'> Tx Settings</h2>
 						<label className='form-control'>
-							<input type="radio" name="TxMode" onChange={(e) => { TxMode = "ASCII" }} checked />
+							<input type="radio" name="TxMode" onChange={(e) => { TxMode = "ASCII" }} defaultChecked />
 							ASCII
 						</label>
 						<label className='form-control'>
@@ -213,7 +215,7 @@ const Home = () => {
 						</label>
 						<h2 className='m-2 text-lg font-bold'> Rx Settings</h2>
 						<label className='form-control'>
-							<input type="radio" name="RxMode" onChange={(e) => { RxMode = "ASCII" }} checked />
+							<input type="radio" name="RxMode" onChange={(e) => { RxMode = "ASCII" }} defaultChecked />
 							ASCII
 						</label>
 						<label className='form-control'>
@@ -222,7 +224,7 @@ const Home = () => {
 						</label>
 					</div>
 					<button onClick={clearAllMessages} className="flex m-2 mx-auto bg-blue-600 p-2 rounded" >Clear</button>
-					<input className='' id='dataToSend' onKeyDown={(e) => { if (e.key === "Enter") { sendInput() } }} />
+					<textarea className='border p-2 m-2 h-full border-black rounded' id='dataToSend' onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); sendInput() } }} />
 
 				</div>
 			</div>
