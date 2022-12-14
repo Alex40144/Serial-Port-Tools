@@ -48,7 +48,6 @@ const Home = () => {
 				keepReading = false
 
 				await reader.cancel();
-				console.log("here")
 				writer.releaseLock()
 				await port.close();
 
@@ -97,7 +96,7 @@ const Home = () => {
 	}
 
 	const sendInput = async () => {
-		console.log(port)
+		console.log(TxMode)
 		let element = (document.getElementById("dataToSend") as HTMLInputElement)
 		if (element && port) {
 			let data = element.value;
@@ -105,17 +104,28 @@ const Home = () => {
 
 
 			if (TxMode == "HEX") {
-				//check that input is hex
-				//convert ascii to hex values in uintarray
-				var uint8 = new Uint8Array(data.length / 2);
-				for (let i = 0; i < data.length; i += 2) {
-					const value = parseInt(data.substring(i, i + 2), 16);
-					uint8[i / 2] = value;
-					await writer.write(uint8);
+				if (!/^[0-9a-fA-F]*$/.test(data)) {
+					throw new Error("Invalid hex string");
 				}
+
+				const hexLength = data.length;
+				if (hexLength % 2 !== 0) {
+					throw new Error("Hex string must have an even number of characters");
+				}
+
+
+				const uint8Array = new Uint8Array(hexLength / 2);
+
+				for (let i = 0; i < hexLength; i += 2) {
+					const byteValue = parseInt(data.substr(i, 2), 16);
+					uint8Array[i / 2] = byteValue;
+				}
+				await writer.write(uint8Array)
+
 			} else {
 				// convert ascii to uintarray
 				var uint8 = new TextEncoder().encode(data)
+				console.log(uint8)
 				await writer.write(uint8);
 			}
 		}
