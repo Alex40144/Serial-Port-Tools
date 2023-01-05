@@ -119,9 +119,10 @@ const Home = () => {
 				const uint8Array = new Uint8Array(hexLength / 2);
 
 				for (let i = 0; i < hexLength; i += 2) {
-					const byteValue = parseInt(data.substr(i, 2), 16);
-					uint8Array[i / 2] = byteValue;
+					const byteValue = data.charAt(i).toString() + data.charAt(i + 1).toString();
+					uint8Array[i / 2] = parseInt(byteValue, 16);
 				}
+				console.log(uint8Array)
 				await writer.write(uint8Array)
 
 			} else {
@@ -174,6 +175,8 @@ const Home = () => {
 								<select value={baudRate} onChange={(e) => { setBaudRate(parseInt(e.target.value)); }}>
 									<option value={9600}> 9600 </option>
 									<option value={115200}> 115200 </option>
+									<option value={460800}> 460800 </option>
+									<option value={921600}> 921600 </option>
 									<option value={0}> Custom </option>
 								</select>
 							</div>
