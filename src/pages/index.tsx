@@ -201,7 +201,7 @@ const Home = () => {
 					image.src = event.target.result as string
 					image.addEventListener("load", () => {
 						ctx.save()
-						ctx.drawImage(image, 0, 0, 64, 64);
+						ctx.drawImage(image, 0, 0, 128, 128);
 						image.style.display = "none";
 					});
 				}
@@ -250,7 +250,7 @@ const Home = () => {
 			return
 		}
 
-		var res = ctx.getImageData(0, 0, 64, 64) //get pixel data for 64*64 area
+		var res = ctx.getImageData(0, 0, 128, 128) //get pixel data for 128*128 area
 		res = contrastImage(res, 30)
 		var list = Array.from(res.data) //create an array from data
 		list = list.map(scaleTo5Bit) //scale data to 0-31
@@ -260,15 +260,26 @@ const Home = () => {
 		while (list.length) {
 			data.push(list.splice(0, 4))
 		}
+		let data2: number[][] = []
 
+		//move pixels around.
+		const halfLength = data.length / 2;
+		const firstHalf = data.slice(0, halfLength);
+		const secondHalf = data.slice(halfLength);
+		while (firstHalf.length) {
+			data2 = data2.concat(firstHalf.splice(0, 128))
+			data2 = data2.concat(secondHalf.splice(0, 128))
+		}
+
+		console.log(data2)
 		let topHalf: any[] = []
 		let bottomHalf: any[] = []
 
-		for (let i = 0; i < data.length / 2; i++) {
-			let topPixel = data[i]
-			let bottomPixel = data[i + 2048]
+		for (let i = 0; i < data2.length / 2; i++) {
+			let topPixel = data2[i]
+			let bottomPixel = data2[i + 8192]
 			if (!topPixel || !bottomPixel) {
-				console.error("something went wrong")
+				console.error("ran out of pixels")
 				return
 			}
 			topHalf[i] = [topPixel[0], topPixel[1], topPixel[2]]
@@ -325,7 +336,7 @@ const Home = () => {
 					image.src = imageUrl as string
 					image.addEventListener("load", () => {
 						ctx.save()
-						ctx.drawImage(image, 0, 0, 64, 64);
+						ctx.drawImage(image, 0, 0, 128, 128);
 						image.style.display = "none";
 						sendImage("spotify-canvas")
 					});
@@ -384,7 +395,7 @@ const Home = () => {
 								<input type="checkbox" name="SpotifyMatrixEnable" id='SpotifyMatrixEnable' onClick={spotifyMatrixEnable} />
 								<span className="slider round"></span>
 							</label>
-							<canvas id='spotify-canvas' width={64} height={64} className='m-auto p-2' />
+							<canvas id='spotify-canvas' width={128} height={128} className='m-auto p-2' />
 						</div>
 					</div>
 					<div className='py-4'>
@@ -393,7 +404,7 @@ const Home = () => {
 						</div>
 						<div className='matrix-image p-2'>
 							<input type="file" name="file" onChange={fileUploaded} accept=".jpg" />
-							<canvas id='image-canvas' width={64} height={64} className='m-auto p-2' />
+							<canvas id='image-canvas' width={128} height={128} className='m-auto p-2' />
 							<button onClick={() => sendImage("image-canvas")} className="w-full p-2 mx-0 my-2 border-4 rounded focus:border-pink-500 focus:outline-none">Send</button>
 						</div>
 					</div>
