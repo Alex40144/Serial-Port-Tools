@@ -230,6 +230,18 @@ const Home = () => {
 		return num.toString(16);
 	}
 
+	function contrastImage(imgData: any, contrast: number) {  //input range [-100..100]
+		var d = imgData.data;
+		contrast = (contrast / 100) + 1;  //convert to decimal & shift range: [0..2]
+		var intercept = 128 * (1 - contrast);
+		for (var i = 0; i < d.length; i += 4) {   //r,g,b,a
+			d[i] = d[i] * contrast + intercept;
+			d[i + 1] = d[i + 1] * contrast + intercept;
+			d[i + 2] = d[i + 2] * contrast + intercept;
+		}
+		return imgData;
+	}
+
 	const sendImage = (id: string) => {
 		var canvas = document.getElementById(id) as HTMLCanvasElement
 		const ctx = canvas.getContext("2d");
@@ -239,6 +251,7 @@ const Home = () => {
 		}
 
 		var res = ctx.getImageData(0, 0, 64, 64) //get pixel data for 64*64 area
+		res = contrastImage(res, 30)
 		var list = Array.from(res.data) //create an array from data
 		list = list.map(scaleTo5Bit) //scale data to 0-31
 
@@ -320,7 +333,7 @@ const Home = () => {
 					if (error.status === 429) {
 						clearInterval(spotifyInterval)
 					} else {
-						throw error;
+						console.log("image not loaded")
 					}
 				}
 				if (!document.getElementById("SpotifyMatrixEnable").checked) {
