@@ -314,8 +314,8 @@ const Home = () => {
 						ctx.save()
 						ctx.drawImage(image, 0, 0, 64, 64);
 						image.style.display = "none";
+						sendImage("spotify-canvas")
 					});
-					sendImage("spotify-canvas")
 				} catch (error: any) {
 					if (error.status === 429) {
 						clearInterval(spotifyInterval)
@@ -326,7 +326,7 @@ const Home = () => {
 				if (!document.getElementById("SpotifyMatrixEnable").checked) {
 					clearInterval(spotifyInterval)
 				}
-			}, 5000);
+			}, 2500);
 		}
 	}
 
