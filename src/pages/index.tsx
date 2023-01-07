@@ -1,6 +1,5 @@
-import React, { useEffect, useState } from 'react'
+import React, { ChangeEvent, MouseEventHandler, useEffect, useState } from 'react'
 import Layout from "../../components/Layout";
-import { Readable, Transform } from 'stream';
 
 
 
@@ -11,9 +10,9 @@ const Home = () => {
 	const [dataBits, setDataBits] = useState(8);
 	const [stopBits, setStopBits] = useState(1);
 	const [parity, setParity] = useState("none");
-
-	var TxMode = "ASCII" //default
-	var RxMode = "ASCII" //default
+	const [spotifyAuth, setSpotifyAuth] = useState<String>()
+	var TxMode = "HEX" //default
+	var RxMode = "HEX" //default
 
 	var keepReading: boolean
 
@@ -134,6 +133,31 @@ const Home = () => {
 		}
 	}
 
+	const sendHex = async (data: any) => {
+		if (port) {
+			if (!/^[0-9a-fA-F]*$/.test(data)) {
+				addMessage("--Hex must only contain valid characters--")
+				return
+			}
+
+			const hexLength = data.length;
+			if (hexLength % 2 !== 0) {
+				addMessage("--Hex must contain an even number of characters--")
+				return
+			}
+
+
+			const uint8Array = new Uint8Array(hexLength / 2);
+
+			for (let i = 0; i < hexLength; i += 2) {
+				const byteValue = data.charAt(i).toString() + data.charAt(i + 1).toString();
+				uint8Array[i / 2] = parseInt(byteValue, 16);
+			}
+			console.log(uint8Array)
+			await writer.write(uint8Array)
+		}
+	}
+
 	const addMessage = (message: string) => {
 		var div = document.createElement('div');
 		div.innerHTML = '<h3 name="event">' + message + '</h3>';
@@ -158,15 +182,214 @@ const Home = () => {
 		}
 	}
 
+	const fileUploaded = (event: ChangeEvent<HTMLInputElement>) => {
+		event.preventDefault()
+		event.stopPropagation()
+		if (event.target.files && event.target.files[0]) {
+			var reader = new FileReader()
+			reader.readAsDataURL(event.target.files[0])
+			reader.onload = (event) => {
+				if (event.target && event.target.result) {
+					var image = new Image()
+					var canvas = document.getElementById("image-canvas") as HTMLCanvasElement
+					const ctx = canvas.getContext("2d");
+					if (!image || !canvas || !ctx) {
+						console.error("something went wrong")
+						return
+					}
+					image.crossOrigin = 'anonymous'
+					image.src = event.target.result as string
+					image.addEventListener("load", () => {
+						ctx.save()
+						ctx.drawImage(image, 0, 0, 64, 64);
+						image.style.display = "none";
+					});
+				}
+			}
+		}
+	}
+
+	function scaleTo5Bit(value: number): number {
+		return Math.floor(value / 8);
+	}
+
+	function binaryToHex(binary: string): string {
+		return parseInt(binary, 2).toString(16).padStart(8, "0");
+	}
+
+	function toBinaryString(values: number[]): string {
+		return values.map(value => value.toString(2).padStart(5, "0")).join('');
+	}
+
+	function setBit31(hex: string) {
+		// Convert hex to BigInt
+		var num = BigInt(`0x${hex}`);
+		// Set bit 31
+		num |= BigInt(1) << BigInt(31);
+		// Convert back to hex string
+		return num.toString(16);
+	}
+
+	const sendImage = (id: string) => {
+		var canvas = document.getElementById(id) as HTMLCanvasElement
+		const ctx = canvas.getContext("2d");
+		if (!canvas || !ctx) {
+			console.error("something went wrong here")
+			return
+		}
+
+		var res = ctx.getImageData(0, 0, 64, 64) //get pixel data for 64*64 area
+		var list = Array.from(res.data) //create an array from data
+		list = list.map(scaleTo5Bit) //scale data to 0-31
+
+		//split data into array for each pixel.
+		let data: number[][] = []
+		while (list.length) {
+			data.push(list.splice(0, 4))
+		}
+
+		let topHalf: any[] = []
+		let bottomHalf: any[] = []
+
+		for (let i = 0; i < data.length / 2; i++) {
+			let topPixel = data[i]
+			let bottomPixel = data[i + 2048]
+			if (!topPixel || !bottomPixel) {
+				console.error("something went wrong")
+				return
+			}
+			topHalf[i] = [topPixel[0], topPixel[1], topPixel[2]]
+			bottomHalf[i] = [bottomPixel[0], bottomPixel[1], bottomPixel[2]]
+		}
+		let hexString: any[] = []
+		let binaryString: any[] = []
+		for (let i = 0; i < topHalf.length; i++) {
+			if (!topHalf[i] || !bottomHalf[i]) {
+				console.error("something went wrong")
+				return
+			}
+			binaryString[i] = toBinaryString(topHalf[i]).concat(toBinaryString(bottomHalf[i]))
+			hexString[i] = binaryToHex(binaryString[i])
+		}
+		hexString[0] = setBit31(hexString[0])
+		sendHex(hexString.join(''))
+	}
+
+	const spotifyMatrixEnable = (event: React.MouseEvent<HTMLInputElement>) => {
+		if (event.currentTarget.checked) {
+			console.log("now checked")
+			let authElement = document.getElementById("spotifyAuth") as HTMLInputElement
+			//load spotify oauth to state
+			if (authElement.value == "") {
+				console.log("no spotify auth")
+				event.currentTarget.checked = false
+				return
+			}
+			setSpotifyAuth(authElement.value)
+			//start
+			const spotifyInterval = setInterval(async () => {
+				try {
+					const playingResponse = await fetch('https://api.spotify.com/v1/me/player/currently-playing', {
+						headers: {
+							Authorization: `Bearer ${authElement.value}`,
+						},
+					});
+					const playingData = await playingResponse.json();
+					console.log(playingData)
+					const album = playingData.item.album;
+
+					// Extract the album art URL
+					const imageUrl = album.images[0].url;
+					console.log(imageUrl);
+					var image = new Image()
+					var canvas = document.getElementById("spotify-canvas") as HTMLCanvasElement
+					const ctx = canvas.getContext("2d");
+					if (!image || !canvas || !ctx) {
+						console.error("no image, canvas, or ctx")
+						return
+					}
+					image.crossOrigin = 'anonymous'
+					image.src = imageUrl as string
+					image.addEventListener("load", () => {
+						ctx.save()
+						ctx.drawImage(image, 0, 0, 64, 64);
+						image.style.display = "none";
+					});
+					sendImage("spotify-canvas")
+				} catch (error: any) {
+					if (error.status === 429) {
+						clearInterval(spotifyInterval)
+					} else {
+						throw error;
+					}
+				}
+				if (!document.getElementById("SpotifyMatrixEnable").checked) {
+					clearInterval(spotifyInterval)
+				}
+			}, 5000);
+		}
+	}
+
+	const expandModule = (event: React.MouseEvent<HTMLDivElement>) => {
+		event.preventDefault()
+		console.log(event)
+		var title = event.currentTarget
+		console.log(title)
+		var children = document.getElementsByClassName(title.id) as unknown as HTMLElement[]
+		for (var i = 0; i < children.length; i++) {
+			var child = children[i]
+			if (!child) { return }
+
+			if (child.style.display == 'none') {
+				//show
+				child.style.display = 'block'
+				title.classList.add('before:rotate-90')
+				title.classList.remove('before:rotate-0')
+
+			} else {
+				//hide
+				child.style.display = 'none'
+				title.classList.add('before:rotate-0')
+				title.classList.remove('before:rotate-90')
+			}
+		}
+	}
 
 	return (
 		<Layout>
 			<div className="flex flex-row justify-center p-5 bg-gray-600 h-full min-h-screen">
-				<div className="flex flex-col-reverse w-7/12 h-65vh bg-white">
+				<div className='flex flex-col bg-white w-2/12 rounded-l'>
+					<div className='py-4'>
+						<div className='before:inline-block before:content-["\25B6"] select-none before:rotate-90' onClick={expandModule} id="matrix-spotify">
+							Spotify Matrix
+						</div>
+
+						<div className='matrix-spotify p-2'>
+							<input className='border border-black rounded' type="text" id="spotifyAuth" />
+							Enable
+							<label className="switch m-2">
+								<input type="checkbox" name="SpotifyMatrixEnable" id='SpotifyMatrixEnable' onClick={spotifyMatrixEnable} />
+								<span className="slider round"></span>
+							</label>
+							<canvas id='spotify-canvas' width={64} height={64} className='m-auto p-2' />
+						</div>
+					</div>
+					<div className='py-4'>
+						<div className='before:inline-block before:content-["\25B6"] select-none before:rotate-90' onClick={expandModule} id="matrix-image">
+							Matrix Image
+						</div>
+						<div className='matrix-image p-2'>
+							<input type="file" name="file" onChange={fileUploaded} accept=".jpg" />
+							<canvas id='image-canvas' width={64} height={64} className='m-auto p-2' />
+							<button onClick={() => sendImage("image-canvas")} className="w-full p-2 mx-0 my-2 border-4 rounded focus:border-pink-500 focus:outline-none">Send</button>
+						</div>
+					</div>
+				</div>
+				<div className="flex flex-col-reverse w-6/12 h-65vh bg-white border-x-4 border-blue-600">
 					<div className="h-0 weirdflex overflow-y-auto" id="Terminal" />
 
 				</div>
-				<div className="flex flex-col w-2/12 bg-white border-l-4 border-blue-600">
+				<div className="flex flex-col w-2/12 bg-white rounded-r">
 					<div className='m-2'>
 						<h2 className='m-2 text-lg font-bold'> Port Settings</h2>
 						<div>
@@ -209,20 +432,20 @@ const Home = () => {
 					<div className='m-2'>
 						<h2 className='m-2 text-lg font-bold'> Tx Settings</h2>
 						<label className='form-control'>
-							<input type="radio" name="TxMode" onChange={(e) => { TxMode = "ASCII" }} defaultChecked />
+							<input type="radio" name="TxMode" onChange={(e) => { TxMode = "ASCII" }} />
 							ASCII
 						</label>
 						<label className='form-control'>
-							<input type="radio" name="TxMode" onChange={(e) => { TxMode = "HEX" }} />
+							<input type="radio" name="TxMode" onChange={(e) => { TxMode = "HEX" }} defaultChecked />
 							HEX
 						</label>
 						<h2 className='m-2 text-lg font-bold'> Rx Settings</h2>
 						<label className='form-control'>
-							<input type="radio" name="RxMode" onChange={(e) => { RxMode = "ASCII" }} defaultChecked />
+							<input type="radio" name="RxMode" onChange={(e) => { RxMode = "ASCII" }} />
 							ASCII
 						</label>
 						<label className='form-control'>
-							<input type="radio" name="RxMode" onChange={(e) => { RxMode = "HEX" }} />
+							<input type="radio" name="RxMode" onChange={(e) => { RxMode = "HEX" }} defaultChecked />
 							HEX
 						</label>
 					</div>

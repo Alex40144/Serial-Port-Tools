@@ -1,6 +1,8 @@
 import Layout from '../../components/Layout'
 import React, { ChangeEvent, useEffect, useState } from 'react'
 import { list } from 'postcss';
+import { blob } from 'stream/consumers';
+import { env } from 'process';
 
 const MatrixGen = () => {
     const [selectedFile, setSelectedFile] = useState();
@@ -14,6 +16,13 @@ const MatrixGen = () => {
         }
     }
 
+    const urlUploaded = async (event: KeyboardEventHandler<HTMLInputElement>) => {
+        if (event.key == "Enter")
+            if (event.target.value) {
+                console.log(event.target.value)
+                setSelectedFile(event.target.value)
+            }
+    }
     const copyText = (event) => {
         var textToCopy = document.getElementById("output");
         //select the text in the text box
@@ -27,11 +36,11 @@ const MatrixGen = () => {
     }
 
     function binaryToHex(binary: string): string {
-        return parseInt(binary, 2).toString(16);
+        return parseInt(binary, 2).toString(16).padStart(8, "0");
     }
 
     function toBinaryString(values: number[]): string {
-        return values.map(value => value.toString(2)).join('');
+        return values.map(value => value.toString(2).padStart(5, "0")).join('');
     }
 
     function setBit31(hex: string) {
@@ -48,6 +57,7 @@ const MatrixGen = () => {
         if (!image) {
             return
         }
+        image.crossOrigin = 'anonymous'
         image.src = selectedFile
         var canvas = document.getElementById("canvas")
         const ctx = canvas.getContext("2d");
@@ -57,7 +67,7 @@ const MatrixGen = () => {
             ctx.drawImage(image, 0, 0, 64, 64);
             image.style.display = "none";
         });
-        var res = ctx.getImageData(0, 0, 64, 64) //get pixel data for 64*60 area
+        var res = ctx.getImageData(0, 0, 64, 64) //get pixel data for 64*64 area
         var list = Array.from(res.data) //create an array from data
         list = list.map(scaleTo5Bit) //scale data to 0-31
 
@@ -77,6 +87,10 @@ const MatrixGen = () => {
             let bottomPixel = data[i + 2048]
             bottomHalf[i] = [bottomPixel[0], bottomPixel[1], bottomPixel[2]]
         }
+        console.log("tophalf")
+        console.log(topHalf)
+        console.log("bottomhalf")
+        console.log(bottomHalf)
 
         let hexString: any[] = []
         let binaryString: any[] = []
@@ -98,6 +112,7 @@ const MatrixGen = () => {
                 </h1>
                 <p>Used to generate data for the LED matrix</p>
                 <p>Step 1: upload image</p>
+                <input type="text" name="url" onKeyDown={urlUploaded} />
                 <input type="file" name="file" onChange={fileUploaded} accept=".jpg" />
                 <div>
                     <button onClick={run} className="w-full p-2 mx-0 my-2 border-4 rounded focus:border-pink-500 focus:outline-none">Run</button>
