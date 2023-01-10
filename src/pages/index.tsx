@@ -1,7 +1,5 @@
-import React, { ChangeEvent, MouseEventHandler, useEffect, useState } from 'react'
+import React, { ChangeEvent, useState } from 'react'
 import Layout from "../../components/Layout";
-
-
 
 
 const Home = () => {
@@ -10,11 +8,8 @@ const Home = () => {
 	const [dataBits, setDataBits] = useState(8);
 	const [stopBits, setStopBits] = useState(1);
 	const [parity, setParity] = useState("none");
-	const [spotifyAuth, setSpotifyAuth] = useState<String>()
-	var TxMode = "HEX" //default
-	var RxMode = "HEX" //default
-
-	var keepReading: boolean
+	let TxMode = "HEX" //default
+	let RxMode = "HEX" //default
 
 	let port: any, reader: any, readableStreamClosed: any, textEncoder: any, textDecoder: any, writableStreamClosed: any, writer: any, hexEncoder: any, hexDecoder: any
 	const loadSerialPorts = async () => {
@@ -26,7 +21,6 @@ const Home = () => {
 
 				writer = port.writable.getWriter()
 
-				keepReading = true
 				addMessage("--CONNECTED--")
 				monitorPort()
 			}
@@ -43,8 +37,6 @@ const Home = () => {
 	const removeSerialPorts = async () => {
 		try {
 			if (port.readable) { //don't close if not open
-
-				keepReading = false
 
 				await reader.cancel();
 				writer.releaseLock()
@@ -75,7 +67,7 @@ const Home = () => {
 					if (RxMode == "HEX") {
 						const view = new DataView(value.buffer);
 						for (let i = 0; i < value.buffer.byteLength; i += 1) {
-							var hexValue = view.getUint8(i).toString(16);
+							let hexValue = view.getUint8(i).toString(16);
 							addMessage(hexValue)
 						}
 					} else {
@@ -126,7 +118,7 @@ const Home = () => {
 
 			} else {
 				// convert ascii to uintarray
-				var uint8 = new TextEncoder().encode(data)
+				let uint8 = new TextEncoder().encode(data)
 				console.log(uint8)
 				await writer.write(uint8);
 			}
@@ -159,11 +151,11 @@ const Home = () => {
 	}
 
 	const addMessage = (message: string) => {
-		var div = document.createElement('div');
+		let div = document.createElement('div');
 		div.innerHTML = '<h3 name="event">' + message + '</h3>';
 
 
-		var Terminal = document.getElementById("Terminal")
+		let Terminal = document.getElementById("Terminal")
 		if (Terminal == null) {
 			return
 		}
@@ -173,7 +165,7 @@ const Home = () => {
 	}
 
 	const clearAllMessages = () => {
-		var Terminal = document.getElementById("Terminal")
+		let Terminal = document.getElementById("Terminal")
 		if (Terminal == null) {
 			return
 		}
@@ -186,12 +178,12 @@ const Home = () => {
 		event.preventDefault()
 		event.stopPropagation()
 		if (event.target.files && event.target.files[0]) {
-			var reader = new FileReader()
+			let reader = new FileReader()
 			reader.readAsDataURL(event.target.files[0])
 			reader.onload = (event) => {
 				if (event.target && event.target.result) {
-					var image = new Image()
-					var canvas = document.getElementById("image-canvas") as HTMLCanvasElement
+					let image = new Image()
+					let canvas = document.getElementById("image-canvas") as HTMLCanvasElement
 					const ctx = canvas.getContext("2d");
 					if (!image || !canvas || !ctx) {
 						console.error("something went wrong")
@@ -223,7 +215,7 @@ const Home = () => {
 
 	function setBit31(hex: string) {
 		// Convert hex to BigInt
-		var num = BigInt(`0x${hex}`);
+		let num = BigInt(`0x${hex}`);
 		// Set bit 31
 		num |= BigInt(1) << BigInt(31);
 		// Convert back to hex string
@@ -231,10 +223,10 @@ const Home = () => {
 	}
 
 	function contrastImage(imgData: any, contrast: number) {  //input range [-100..100]
-		var d = imgData.data;
+		let d = imgData.data;
 		contrast = (contrast / 100) + 1;  //convert to decimal & shift range: [0..2]
-		var intercept = 128 * (1 - contrast);
-		for (var i = 0; i < d.length; i += 4) {   //r,g,b,a
+		let intercept = 128 * (1 - contrast);
+		for (let i = 0; i < d.length; i += 4) {   //r,g,b,a
 			d[i] = d[i] * contrast + intercept;
 			d[i + 1] = d[i + 1] * contrast + intercept;
 			d[i + 2] = d[i + 2] * contrast + intercept;
@@ -243,16 +235,16 @@ const Home = () => {
 	}
 
 	const sendImage = (id: string) => {
-		var canvas = document.getElementById(id) as HTMLCanvasElement
+		let canvas = document.getElementById(id) as HTMLCanvasElement
 		const ctx = canvas.getContext("2d");
 		if (!canvas || !ctx) {
 			console.error("something went wrong here")
 			return
 		}
 
-		var res = ctx.getImageData(0, 0, 128, 128) //get pixel data for 128*128 area
+		let res = ctx.getImageData(0, 0, 128, 128) //get pixel data for 128*128 area
 		res = contrastImage(res, 30)
-		var list = Array.from(res.data) //create an array from data
+		let list = Array.from(res.data) //create an array from data
 		list = list.map(scaleTo5Bit) //scale data to 0-31
 
 		//split data into array for each pixel.
@@ -309,7 +301,6 @@ const Home = () => {
 				event.currentTarget.checked = false
 				return
 			}
-			setSpotifyAuth(authElement.value)
 			//start
 			const spotifyInterval = setInterval(async () => {
 				try {
@@ -325,8 +316,8 @@ const Home = () => {
 					// Extract the album art URL
 					const imageUrl = album.images[0].url;
 					console.log(imageUrl);
-					var image = new Image()
-					var canvas = document.getElementById("spotify-canvas") as HTMLCanvasElement
+					let image = new Image()
+					let canvas = document.getElementById("spotify-canvas") as HTMLCanvasElement
 					const ctx = canvas.getContext("2d");
 					if (!image || !canvas || !ctx) {
 						console.error("no image, canvas, or ctx")
@@ -347,7 +338,8 @@ const Home = () => {
 						console.log("image not loaded")
 					}
 				}
-				if (!document.getElementById("SpotifyMatrixEnable").checked) {
+				let element = document.getElementById("SpotifyMatrixEnable") as HTMLInputElement
+				if (element && !element.checked) {
 					clearInterval(spotifyInterval)
 				}
 			}, 2500);
@@ -357,11 +349,11 @@ const Home = () => {
 	const expandModule = (event: React.MouseEvent<HTMLDivElement>) => {
 		event.preventDefault()
 		console.log(event)
-		var title = event.currentTarget
+		let title = event.currentTarget
 		console.log(title)
-		var children = document.getElementsByClassName(title.id) as unknown as HTMLElement[]
-		for (var i = 0; i < children.length; i++) {
-			var child = children[i]
+		let children = document.getElementsByClassName(title.id) as unknown as HTMLElement[]
+		for (let i = 0; i < children.length; i++) {
+			let child = children[i]
 			if (!child) { return }
 
 			if (child.style.display == 'none') {
