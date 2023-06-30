@@ -1,8 +1,10 @@
 import React, { ChangeEvent, useState } from 'react'
+import { useRouter } from 'next/router'
 import Layout from "../../components/Layout";
 
 
 const Home = () => {
+	const router = useRouter()
 
 	const [baudRate, setBaudRate] = useState(115200);
 	const [dataBits, setDataBits] = useState(8);
@@ -291,22 +293,23 @@ const Home = () => {
 		sendHex(hexString.join(''))
 	}
 
+	const spotifyAuth = () => {
+		router.push('/SpotifyAuth')
+	}
+
 	const spotifyMatrixEnable = (event: React.MouseEvent<HTMLInputElement>) => {
 		if (event.currentTarget.checked) {
-			console.log("now checked")
-			let authElement = document.getElementById("spotifyAuth") as HTMLInputElement
-			//load spotify oauth to state
-			if (authElement.value == "") {
-				console.log("no spotify auth")
+			const access_token = sessionStorage.getItem('access_token');
+			console.log(access_token)
+			if (access_token == undefined) {
 				event.currentTarget.checked = false
-				return
 			}
 			//start
 			const spotifyInterval = setInterval(async () => {
 				try {
 					const playingResponse = await fetch('https://api.spotify.com/v1/me/player/currently-playing', {
 						headers: {
-							Authorization: `Bearer ${authElement.value}`,
+							Authorization: `Bearer ${access_token}`,
 						},
 					});
 					const playingData = await playingResponse.json();
@@ -381,7 +384,7 @@ const Home = () => {
 						</div>
 
 						<div className='matrix-spotify p-2'>
-							<input className='border border-black rounded' type="text" id="spotifyAuth" />
+							<button onClick={spotifyAuth} className="w-full p-2 mx-0 my-2 border-4 rounded focus:border-pink-500 focus:outline-none">Auth</button>
 							Enable
 							<label className="switch m-2">
 								<input type="checkbox" name="SpotifyMatrixEnable" id='SpotifyMatrixEnable' onClick={spotifyMatrixEnable} />
