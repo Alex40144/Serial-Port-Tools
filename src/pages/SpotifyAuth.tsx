@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/router';
 import querystring from 'querystring';
-const { Buffer } = require('buffer');
+import { Buffer } from 'buffer';
 
 const SPOTIFY_AUTH_ENDPOINT = 'https://accounts.spotify.com/authorize';
 const SPOTIFY_TOKEN_ENDPOINT = 'https://accounts.spotify.com/api/token';
