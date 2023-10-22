@@ -54,7 +54,7 @@ async function getToken(code: string | string[]) {
 }
 
 async function authorize() {
-    const codeVerifier = base64URLEncode(crypto.getRandomValues(new Uint8Array(32)));
+    const codeVerifier = base64URLEncode(crypto.getRandomValues(new Uint8Array(64)));
     const codeChallenge = await generateCodeChallenge(codeVerifier);
     sessionStorage.setItem('code_verifier', codeVerifier);
     const params = {
