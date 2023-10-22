@@ -79,7 +79,7 @@ export const getServerSideProps = async (
 
 export default function SpotifyAuth({ url }: { url: string }) {
     const router = useRouter();
-    REDIRECT_URI = 'http://' + url + '/SpotifyAuth'
+    REDIRECT_URI = 'https://' + url + '/SpotifyAuth'
     console.log(REDIRECT_URI)
     useEffect(() => {
         if (!router.isReady) return;
