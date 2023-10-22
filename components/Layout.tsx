@@ -1,6 +1,7 @@
 import Head from 'next/head'
 import Image from 'next/image'
 import Link from 'next/link'
+import Script from 'next/script'
 
 export const siteTitle = 'Serial Port Tools'
 
@@ -13,6 +14,8 @@ export default function Layout({
 }) {
     return (
         <div>
+            <Script defer data-domain="serialporttools.alexpegg.uk" src="https://analytics.alexpegg.uk/js/script.js"></Script>
+
             <Head>
                 <link rel="shortcut icon" href="/" />
                 <title>{siteTitle}</title>
